@@ -14,7 +14,9 @@ import (
 )
 
 const (
-	PREFIX = "DNS:"
+	PREFIX     = "DNS:"
+	DNS_PREFIX = "_nkn."
+	TXT_PREFIX = "nkn"
 )
 
 var (
@@ -66,7 +68,7 @@ func MergeConfig(config *Config) (*Config, error) {
 
 func ParseTXT(txt string) (string, error) {
 	parts := strings.SplitN(txt, "=", 2)
-	if len(parts) == 2 && parts[0] == "nknlink" {
+	if len(parts) == 2 && parts[0] == TXT_PREFIX {
 		return path.Clean(parts[1]), nil
 	}
 
@@ -109,19 +111,20 @@ func (r *Resolver) Resolve(address string) (string, error) {
 		return "", ErrInvalidDomain
 	}
 
-	txt, err := net.LookupTXT(address)
+	dnsResolver := &net.Resolver{}
 
+	txt, err := dnsResolver.LookupTXT(ctx, DNS_PREFIX+address)
 	if err != nil {
 		return "", err
 	}
-	err = ErrResolveFailed
+
 	for _, t := range txt {
 		p, err := ParseTXT(t)
 		if err == nil {
-			r.cache.Add(address, p, cache.DefaultExpiration)
+			r.cache.Set(address, p, cache.DefaultExpiration)
 			return p, nil
 		}
 	}
 
-	return "", err
+	return "", ErrResolveFailed
 }
