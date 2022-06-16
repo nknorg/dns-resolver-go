@@ -14,8 +14,13 @@ import (
 )
 
 const (
-	PREFIX     = "DNS:"
+	// PREFIX Protocol prefix
+	PREFIX = "DNS:"
+
+	// DNS_PREFIX domain prefix
 	DNS_PREFIX = "_nkn."
+
+	// TXT_PREFIX  TXT record parameter name
 	TXT_PREFIX = "nkn"
 )
 
@@ -24,36 +29,43 @@ var (
 	// is not actually a valid domain.
 	ErrInvalidDomain = errors.New("not a valid domain name")
 
-	// ErrInvalidNknlink is returned when the nknlink entry in a TXT record
-	// does not follow the proper nknlink format ("nknlink=<path>")
-	ErrInvalidNknlink = errors.New("not a valid nknlink entry")
+	// ErrInvalidLink is returned when the nkn entry in a TXT record
+	// does not follow the proper nkn format ("nkn=<path>")
+	ErrInvalidLink = errors.New("not a valid link entry")
 
 	// ErrResolveFailed is returned when a resolution failed, most likely
 	// due to a network error.
 	ErrResolveFailed = errors.New("link resolution failed")
 )
 
+// Config is the Resolver configuration.
 type Config struct {
 	Prefix       string
 	CacheTimeout time.Duration // seconds
 	DialTimeout  int           // milliseconds
 }
 
+// Resolver implement ETH resolver.
 type Resolver struct {
 	config *Config
 	cache  *cache.Cache
 }
 
+// DefaultConfig is the default Resolver config.
 var DefaultConfig = Config{
 	Prefix:       PREFIX,
 	CacheTimeout: cache.NoExpiration,
 	DialTimeout:  5000,
 }
 
+// GetDefaultConfig returns the default Resolver config with nil pointer
+// fields set to default.
 func GetDefaultConfig() *Config {
 	return &DefaultConfig
 }
 
+// MergeConfig merges a given Resolver config with the default Resolver config
+// recursively. Any non zero value fields will override the default config.
 func MergeConfig(config *Config) (*Config, error) {
 	merged := GetDefaultConfig()
 	if config != nil {
@@ -66,15 +78,17 @@ func MergeConfig(config *Config) (*Config, error) {
 	return merged, nil
 }
 
+// ParseTXT parses a TXT record value.
 func ParseTXT(txt string) (string, error) {
 	parts := strings.SplitN(txt, "=", 2)
 	if len(parts) == 2 && parts[0] == TXT_PREFIX {
 		return path.Clean(parts[1]), nil
 	}
 
-	return "", ErrInvalidNknlink
+	return "", ErrInvalidLink
 }
 
+// NewResolver creates a Resolver. If config is nil, the default Resolver config will be used.
 func NewResolver(config *Config) (*Resolver, error) {
 	config, err := MergeConfig(config)
 	if err != nil {
@@ -87,6 +101,7 @@ func NewResolver(config *Config) (*Resolver, error) {
 	}, nil
 }
 
+// Resolve resolves the address and returns the mapping address.
 func (r *Resolver) Resolve(address string) (string, error) {
 	if !strings.HasPrefix(address, r.config.Prefix) {
 		return "", nil
