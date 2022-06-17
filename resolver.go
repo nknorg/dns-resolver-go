@@ -29,13 +29,13 @@ var (
 	// is not actually a valid domain.
 	ErrInvalidDomain = errors.New("not a valid domain name")
 
-	// ErrInvalidLink is returned when the nkn entry in a TXT record
+	// ErrInvalidRecord is returned when the nkn entry in a TXT record
 	// does not follow the proper nkn format ("nkn=<path>")
-	ErrInvalidLink = errors.New("not a valid link entry")
+	ErrInvalidRecord = errors.New("not a valid record entry")
 
 	// ErrResolveFailed is returned when a resolution failed, most likely
 	// due to a network error.
-	ErrResolveFailed = errors.New("link resolution failed")
+	ErrResolveFailed = errors.New("record resolution failed")
 )
 
 // Config is the Resolver configuration.
@@ -43,6 +43,7 @@ type Config struct {
 	Prefix       string
 	CacheTimeout time.Duration // seconds
 	DialTimeout  int           // milliseconds
+	DnsServer    string
 }
 
 // Resolver implement ETH resolver.
@@ -56,6 +57,7 @@ var DefaultConfig = Config{
 	Prefix:       PREFIX,
 	CacheTimeout: cache.NoExpiration,
 	DialTimeout:  5000,
+	DnsServer:    "",
 }
 
 // GetDefaultConfig returns the default Resolver config with nil pointer
@@ -85,7 +87,7 @@ func ParseTXT(txt string) (string, error) {
 		return path.Clean(parts[1]), nil
 	}
 
-	return "", ErrInvalidLink
+	return "", ErrInvalidRecord
 }
 
 // NewResolver creates a Resolver. If config is nil, the default Resolver config will be used.
@@ -127,6 +129,16 @@ func (r *Resolver) Resolve(address string) (string, error) {
 	}
 
 	dnsResolver := &net.Resolver{}
+	if len(r.config.DnsServer) > 0 {
+		dnsResolver.Dial = func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := &net.Dialer{}
+			conn, err := d.DialContext(ctx, network, r.config.DnsServer)
+			if err != nil {
+				return nil, err
+			}
+			return conn, nil
+		}
+	}
 
 	txt, err := dnsResolver.LookupTXT(ctx, DNS_PREFIX+address)
 	if err != nil {
