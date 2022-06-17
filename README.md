@@ -2,13 +2,13 @@
 
 ## Usage
 
-A dnslink is a path link in a dns TXT record, like this:
+Address in a dns TXT record, like this:
 _nkn.foo.com TXT nkn=123abc
 For example:
 > $ dig TXT _nkn.foo.com \
 > _nkn.foo.com.  120   IN  TXT  nkn=123abc
 
-* Add Resolver, DNS link to NKN address
+* Add Resolver, DNS record to NKN address
 ```
 account, err := NewAccount(nil)
 dnsResolver, err := dnsresolver.NewResolver(nil)
