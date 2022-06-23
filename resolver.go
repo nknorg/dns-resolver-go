@@ -105,7 +105,7 @@ func NewResolver(config *Config) (*Resolver, error) {
 
 // Resolve resolves the address and returns the mapping address.
 func (r *Resolver) Resolve(address string) (string, error) {
-	if !strings.HasPrefix(address, r.config.Prefix) {
+	if !strings.HasPrefix(strings.ToUpper(address), r.config.Prefix) {
 		return "", nil
 	}
 
