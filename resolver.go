@@ -18,16 +18,16 @@ const (
 	PREFIX = "DNS:"
 
 	// DNS_PREFIX domain prefix
-	DNS_PREFIX = "_nkn."
+	DNS_PREFIX = "_nkn"
 
 	// TXT_PREFIX  TXT record parameter name
 	TXT_PREFIX = "nkn"
 )
 
 var (
-	// ErrInvalidDomain is returned when a string representing a domain name
-	// is not actually a valid domain.
-	ErrInvalidDomain = errors.New("not a valid domain name")
+	// ErrInvalidAddress is returned when a string representing an address
+	// is not actually a valid address.
+	ErrInvalidAddress = errors.New("not a valid address")
 
 	// ErrInvalidRecord is returned when the nkn entry in a TXT record
 	// does not follow the proper nkn format ("nkn=<path>")
@@ -82,9 +82,9 @@ func MergeConfig(config *Config) (*Config, error) {
 }
 
 // ParseTXT parses a TXT record value.
-func ParseTXT(txt string) (string, error) {
+func ParseTXT(txt, key string) (string, error) {
 	parts := strings.SplitN(txt, "=", 2)
-	if len(parts) == 2 && parts[0] == TXT_PREFIX {
+	if len(parts) == 2 && parts[0] == key {
 		return path.Clean(parts[1]), nil
 	}
 
@@ -125,8 +125,8 @@ func (r *Resolver) Resolve(address string) (string, error) {
 		defer cancel()
 	}
 
-	if !isdomain.IsDomain(address) {
-		return "", ErrInvalidDomain
+	if !isdomain.IsDomain(address) && !IsEmail(address) {
+		return "", ErrInvalidAddress
 	}
 
 	dnsResolver := &net.Resolver{}
@@ -141,13 +141,20 @@ func (r *Resolver) Resolve(address string) (string, error) {
 		}
 	}
 
-	txt, err := dnsResolver.LookupTXT(ctx, DNS_PREFIX+address)
+	record := DNS_PREFIX + "." + address
+	txtKey := TXT_PREFIX
+	if IsEmail(address) {
+		record = DNS_PREFIX + "." + strings.Replace(address, "@", ".", 1)
+		txtKey = address[:strings.Index(address, "@")] + "@" + TXT_PREFIX
+	}
+
+	txt, err := dnsResolver.LookupTXT(ctx, record)
 	if err != nil {
 		return "", err
 	}
 
 	for _, t := range txt {
-		p, err := ParseTXT(t)
+		p, err := ParseTXT(t, txtKey)
 		if err == nil {
 			r.cache.Set(address, p, cache.DefaultExpiration)
 			return p, nil
