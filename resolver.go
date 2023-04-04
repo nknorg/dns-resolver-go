@@ -3,14 +3,14 @@ package dnsresolver
 import (
 	"context"
 	"errors"
+	"net"
+	"path"
+	"strings"
+	"time"
+
 	"github.com/imdario/mergo"
 	isdomain "github.com/jbenet/go-is-domain"
 	"github.com/patrickmn/go-cache"
-	"net"
-	"path"
-
-	"strings"
-	"time"
 )
 
 const (
@@ -104,21 +104,23 @@ func NewResolver(config *Config) (*Resolver, error) {
 	}, nil
 }
 
-// Resolve resolves the address and returns the mapping address.
+// Resolve wraps ResolveContext with background context.
 func (r *Resolver) Resolve(address string) (string, error) {
+	return r.ResolveContext(context.Background(), address)
+}
+
+// ResolveContext resolves the address and returns the mapping address.
+func (r *Resolver) ResolveContext(ctx context.Context, address string) (string, error) {
 	if !strings.HasPrefix(strings.ToUpper(address), r.config.Prefix) {
 		return "", nil
 	}
 
 	address = address[len(r.config.Prefix):]
-	addr := address
 	addrCache, ok := r.cache.Get(address)
 	if ok {
-		addr = addrCache.(string)
-		return addr, nil
+		return addrCache.(string), nil
 	}
 
-	ctx := context.Background()
 	var cancel context.CancelFunc
 	if r.config.DialTimeout > 0 {
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(r.config.DialTimeout)*time.Millisecond)
